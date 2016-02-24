@@ -80,4 +80,45 @@ describe('ctx.cookies.set()', function(){
       })
     })
   })
+
+  describe('with secure', function(){
+    it('should get secure from request', function(done){
+      var app = koa();
+
+      app.keys = ['a', 'b'];
+      app.proxy = true;
+
+      app.use(function *(next){
+        // mock secure
+        this.req.headers['x-forwarded-proto'] = 'https';
+        this.cookies.set('name', 'jon', { signed: true });
+        this.status = 204;
+      })
+
+      var server = app.listen();
+
+      request(server)
+      .get('/')
+      .expect(204)
+      .end(function(err, res){
+        if (err) return done(err);
+
+        var cookies = res.headers['set-cookie'];
+
+        cookies.some(function(cookie){
+          return /^name=/.test(cookie);
+        }).should.be.ok;
+
+        cookies.some(function(cookie){
+          return /^name\.sig=/.test(cookie);
+        }).should.be.ok;
+
+        cookies.every(function(cookie){
+          return /secure/.test(cookie);
+        }).should.be.ok;
+
+        done();
+      })
+    })
+  })
 })
